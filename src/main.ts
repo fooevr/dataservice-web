@@ -1,0 +1,64 @@
+// import Vue from 'vue'
+// import App from './App.vue'
+// import router from './router'
+// import store from './store'
+
+// Vue.config.productionTip = false
+
+// new Vue({
+//   router,
+//   store,
+//   render: h => h(App)
+// }).$mount('#app')
+import * as jspb from "google-protobuf";
+import * as ds from "./dataservice/ds";
+import * as pj from "protobufjs"
+import {ServiceCaller} from "./dataservice/dataservice"
+
+// const f = new ds.com.variflight.fidstest.flight.FlightInfo();
+
+pj.load("main.proto", function (err, proto) {
+    if (!proto) {
+        return;
+    }
+    const patch = (ns: { [ns: string]: any, }, path?: string) => {
+        Object.keys(ns).forEach((key) => {
+            const value = ns[key];
+            const currentPath = path ? `${path}.${key}` : key;
+            if (typeof value === 'object') {
+                patch(value, currentPath);
+            }
+            if (typeof value === 'function') {
+                Object.defineProperty(value, 'name', {
+                    value: currentPath,
+                    configurable: true,
+                });
+            }
+        })
+    }
+    patch(ds)
+    const sc = new ServiceCaller("http://127.0.0.1:8085", proto, ds.com.variflight.test.OrderService.name);
+    sc.loop(ds.com.variflight.test.OrderService.prototype.getUsersOrder, function () {
+        const result = new ds.google.protobuf.Empty()
+        return result;
+    }, 0, function () {
+        console.log("dao updated", arguments);
+    });
+
+});
+
+
+// bootstrap the demo
+const demo = new Vue({
+    el: "#demo",
+    data: {
+        searchQuery: "",
+        gridColumns: ["name", "power"],
+        gridData: [
+            {name: "Chuck Norris", power: Infinity},
+            {name: "Bruce Lee", power: 9000},
+            {name: "Jackie Chan", power: 7000},
+            {name: "Jet Li", power: 8000}
+        ]
+    }
+});

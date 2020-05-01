@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/empty.proto";
+
+package com.variflight.test;
+
+message user{
+    int32 id = 1;
+    string name = 2;
+    google.protobuf.StringValue comment = 3;
+    map<int32, order> orderArray = 4;
+}
+
+message order{
+    int32 id = 1;
+    int64 orderTime = 2;
+    double totalPrice = 3;
+    google.protobuf.StringValue address = 4;
+    map<int32, orderItem> orderItemMap = 5;
+    repeated orderItem orderItemArray = 8;
+    map<int32, double> pricesMap = 6;
+    int32 userid = 7;
+    user parentUser = 9;
+}
+
+message orderItem{
+    int32 id = 1;
+    string name = 2;
+    double price = 3;
+    int32 orderid = 4;
+}
+
+message Users{
+    map<int32, user> users = 1;
+}
+
+service OrderService{
+    rpc GetUsersOrder(google.protobuf.Empty)returns(Users);
+}
