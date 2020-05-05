@@ -124,7 +124,8 @@ function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:T
     });
     for(let i = 0; i < fields.length; i++){
         const field = fields[i];
-        if (field.name === "pricesMap"){
+        if(!cd) {
+            console.log(sourceDAO, typeDesc, cd);
         }
         const fieldTag = cd.fieldTags[Math.floor( i / 4)] >> (6 - (i % 4) * 2) << 6 & 0b11000000;
         if(fieldTag == ChangeType.Created){
@@ -143,7 +144,7 @@ function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:T
             }else if(field.repeated){
                 // @ts-ignore
                 targetDAO[field.name] = sourceDAO[field.name];
-            }else if(field.resolvedType != null){
+            }else if(field.resolvedType != null && !field.resolvedType.fullName.startsWith(".google.protobuf.")){
                 // @ts-ignore
                 mergeMessage(sourceDAO[field.name], targetDAO[field.name], field.resolvedType, cd.fieldsChangeDescs[cdIndex] as ChangeDesc)
             }else if(field){
@@ -193,8 +194,3 @@ function mergeMap<TRequest extends pj.Message<{}>>(sourceDAO: Map<any, any>, tar
         }
     }
 }
-
-
-//pbjs -t static-module -w commonjs src/proto/*.proto -o src/scripts/proto/proto.js
-//pbts src/scripts/proto/proto.js -o src/scripts/proto/proto.d.ts
-//pbjs -t proto3 src/proto/*.proto -o public/main.proto
