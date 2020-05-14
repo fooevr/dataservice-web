@@ -84,8 +84,10 @@ export class ServiceCaller {
                             const cd = ChangeDesc.decode(cdBts);
                             const updateData = methodDesc.resolvedResponseType?.decode((resp.message as bridge).resultBts!!) as TResponse;
                             if(dao){
-                                mergeMessage(updateData, dao, methodDesc.resolvedResponseType!, cd);
-                                console.log("updated ", dao, "cd len", cdBts.length);
+                                const start = window.performance.now()
+                                mergeMessage(updateData, dao, methodDesc.resolvedResponseType!, cd, new Array<string>());
+                                const end = window.performance.now();
+                                console.log("updated ", dao, "cd len", cdBts.length, " cost " + (end - start) + " ns.");
                             }else{
                                 console.error("receive update message. but current dao value is undefined.");
                             }
@@ -115,7 +117,7 @@ export class ServiceCaller {
     }
 }
 
-function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:TType, typeDesc:Type, cd:ChangeDesc){
+function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:TType, typeDesc:Type, cd:ChangeDesc, stack:Array<string>){
     const fields = typeDesc.fieldsArray.sort((f1:Field, f2: Field):number=>{
         if(f1.id == f2.id){
             return 0;
@@ -139,8 +141,11 @@ function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:T
                 }
             }
             if(field.map) {
-                // @ts-ignore
-                mergeMap(sourceDAO[field.name], targetDAO[field.name], field as FieldBase as MapField, cd.fieldsChangeDescs[cdIndex])
+                try {
+                    // @ts-ignore
+                    mergeMap(sourceDAO[field.name], targetDAO[field.name], field as FieldBase as MapField, cd.fieldsChangeDescs[cdIndex])
+                }catch (e) {
+                }
             }else if(field.repeated){
                 // @ts-ignore
                 targetDAO[field.name] = sourceDAO[field.name];
@@ -158,7 +163,7 @@ function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:T
     }
 }
 
-function mergeMap<TRequest extends pj.Message<{}>>(sourceDAO: Map<any, any>, targetDAO: Map<any, any>, field:MapField, cd: ChangeDesc){
+function mergeMap<TRequest extends pj.Message<{}>>(sourceDAO: Map<any, any>, targetDAO: Map<any, any>, field:MapField, cd: ChangeDesc, stack:Array<string>){
     field.resolve()
     let createOrUpdatedMapDesc: { [k: string]: IChangeDesc }
     let removedMapDesc: { [k: string]: IChangeDesc }

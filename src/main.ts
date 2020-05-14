@@ -11,6 +11,7 @@
 //   render: h => h(App)
 // }).$mount('#app')
 import * as ds from "./dataservice/ds";
+// @ts-ignore
 import JsonViewer from 'vue-json-viewer'
 import * as pj from "protobufjs"
 import {ServiceCaller} from "./dataservice/dataservice"
@@ -20,9 +21,11 @@ import IUsers = com.variflight.test.IUsers;
 
 
 
+// @ts-ignore
 Vue.use(JsonViewer);
 
 // bootstrap the demo
+// @ts-ignore
 const demo = new Vue({
     el: "#demo",
     data: {
@@ -59,6 +62,7 @@ pj.load("main.proto", function (err, proto) {
         })
     }
     patch(ds)
+
     const sc = new ServiceCaller("http://127.0.0.1:8085", proto, ds.com.variflight.test.OrderService.name);
     sc.loop(ds.com.variflight.test.OrderService.prototype.getUsersOrder, function () {
         return new ds.google.protobuf.Empty();
@@ -72,4 +76,18 @@ pj.load("main.proto", function (err, proto) {
             demo.$data.gridData = {};
         }
     });
+
+    // const sc = new ServiceCaller("http://127.0.0.1:8085", proto, ds.com.variflight.fidstest.flight.FlightService.name);
+    // sc.loop(ds.com.variflight.fidstest.flight.FlightService.prototype.pullFlightInfo, function () {
+    //     return new ds.com.variflight.fidstest.flight.Nothing();
+    // }, 0, function (dao) {
+    //     if(dao) {
+    //         const user = (dao as IUsers as Users).users;
+    //         demo.$data.oldJson = demo.$data.newJson;
+    //         demo.$data.newJson = dao.toJSON();
+    //         // console.log();
+    //     }else{
+    //         demo.$data.gridData = {};
+    //     }
+    // });
 });

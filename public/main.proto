@@ -104,7 +104,7 @@ message com {
                 repeated orderItem order_item_array = 8;
                 map<int32, double> prices_map = 6;
                 int32 userid = 7;
-                user parent_user = 9;
+                orderItem most_exp_item = 9;
             }
 
             message orderItem {
