@@ -10,14 +10,39 @@
 //   store,
 //   render: h => h(App)
 // }).$mount('#app')
-import * as ds from "./dataservice/ds";
 // @ts-ignore
 import JsonViewer from 'vue-json-viewer'
 import * as pj from "protobufjs"
+import * as api from "@/api/TT_pb_service"
+import {Request, Response} from "@/api/TT_pb";
+import {ServiceError, TT, UnaryResponse} from "@/api/TT_pb_service";
+import {grpc} from "@improbable-eng/grpc-web";
+const req = new Request()
+const md = new grpc.Metadata()
+md.append("Ts", "0")
+const client = new api.TTClient("http://10.0.0.101:8080", {
+    transport: grpc.WebsocketTransport(),
+});
+const loop = function() {
+    const x: UnaryResponse = client.unary(req, md, function (err: ServiceError | null, data: Response | null) {
+        console.log(err?.message);
+        console.log(data?.getValue());
+        setTimeout(loop, 5000);
+    })
+}
+
+//loop()
 import {ServiceCaller} from "./dataservice/dataservice"
-import {com} from "./dataservice/ds";
-import Users = com.variflight.test.Users;
-import IUsers = com.variflight.test.IUsers;
+import * as impUnary from "@improbable-eng/grpc-web/dist/typings/unary";
+pj.load("main.proto", function (err, proto){
+    const sc = new ServiceCaller("http://127.0.0.1:8080", proto!!, TT.serviceName)
+    sc.loop(TT.unary.methodName, req, 0, function(newDao:Response){
+        console.log(newDao)
+    }, null, function(ts:number){
+        console.log(ts)
+    })
+})
+
 
 
 
@@ -61,21 +86,21 @@ pj.load("main.proto", function (err, proto) {
             }
         })
     }
-    patch(ds)
-
-    const sc = new ServiceCaller("http://127.0.0.1:8085", proto, ds.com.variflight.test.OrderService.name);
-    sc.loop(ds.com.variflight.test.OrderService.prototype.getUsersOrder, function () {
-        return new ds.google.protobuf.Empty();
-    }, 0, function (dao) {
-        if(dao) {
-            const user = (dao as IUsers as Users).users;
-            demo.$data.oldJson = demo.$data.newJson;
-            demo.$data.newJson = dao.toJSON();
-            // console.log();
-        }else{
-            demo.$data.gridData = {};
-        }
-    });
+    // patch(ds)
+    // com.variflight.dataservice.test.ScoreService
+    // const sc = new ServiceCaller("http://127.0.0.1:8080", proto, ds.com.variflight.dataservice.test.ScoreService.name);
+    // sc.loop(ds.com.variflight.dataservice.test.ScoreService.prototype.getUsersOrder, function () {
+    //     return new ds.google.protobuf.Empty();
+    // }, 0, function (dao) {
+    //     if(dao) {
+    //         const user = (dao as IUsers as Users).users;
+    //         demo.$data.oldJson = demo.$data.newJson;
+    //         demo.$data.newJson = dao.toJSON();
+    //         // console.log();
+    //     }else{
+    //         demo.$data.gridData = {};
+    //     }
+    // });
 
     // const sc = new ServiceCaller("http://127.0.0.1:8085", proto, ds.com.variflight.fidstest.flight.FlightService.name);
     // sc.loop(ds.com.variflight.fidstest.flight.FlightService.prototype.pullFlightInfo, function () {

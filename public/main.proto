@@ -8,119 +8,81 @@ message com {
 
             option csharp_namespace = "com.variflight.dataservice";
             option cc_enable_arenas = true;
-            option go_package = "variflight.com/dataservice";
+            option go_package = "com/variflight/dataservice";
             option java_package = "com.variflight.dataservice";
             option java_multiple_files = false;
             option objc_class_prefix = "DS";
 
-            message ChangeDesc {
+            message ProtoDesc {
 
-                bytes field_tags = 1;
-                bytes change_tags = 2;
-                repeated ChangeDesc fields_change_descs = 3;
-                map<int32, ChangeDesc> map_int32 = 4;
-                map<int64, ChangeDesc> map_int64 = 5;
-                map<bool, ChangeDesc> map_bool = 6;
-                map<string, ChangeDesc> map_string = 7;
-                map<int32, ChangeDesc> map_int32_removed = 8;
-                map<int64, ChangeDesc> map_int64_removed = 9;
-                map<bool, ChangeDesc> map_bool_removed = 10;
-                map<string, ChangeDesc> map_string_removed = 11;
+                string version = 1;
+                map<string, bytes> files = 2;
+                google.protobuf.StringValue No_cache_prefix = 3;
+                google.protobuf.StringValue Full_cache_prefix = 4;
+                google.protobuf.StringValue Increment_cache_prefix = 5;
+                google.protobuf.Int32Value defaultTT_l = 6;
+                google.protobuf.Int32Value default_max_version = 7;
+                map<string, int32> rpcTT_ls = 8;
+                map<string, int32> rpc_max_versions = 9;
             }
-        }
+            service Proto {
+                rpc getProtoDescription (google.protobuf.Empty) returns (ProtoDesc);
+            }
 
-        message fidstest {
+            message test {
 
-            message flight {
+                message Request {
 
-                message FlightInfo {
-
-                    string fid = 1;
-                    bool is_arrive = 2;
-                    string f_no = 3;
-                    int64 f_date = 4;
-                    google.protobuf.StringValue a_no = 5;
-                    string dep = 6;
-                    string arr = 7;
-                    int64 std = 8;
-                    int64 sta = 9;
-                    google.protobuf.Int64Value etd = 10;
-                    google.protobuf.Int64Value eta = 11;
-                    google.protobuf.Int64Value atd = 12;
-                    google.protobuf.Int64Value ata = 13;
-                    google.protobuf.StringValue f_mode = 14;
-                    string al_iata = 15;
-                    string al_icao = 16;
-                    string cla = 17;
-                    string f_status = 18;
-                    google.protobuf.StringValue delay_code = 19;
-                    google.protobuf.StringValue delay_cn = 20;
-                    google.protobuf.StringValue sflight = 21;
-                    google.protobuf.StringValue stand = 22;
-                    google.protobuf.StringValue gate = 23;
-                    google.protobuf.StringValue car = 24;
-                    google.protobuf.StringValue mp1 = 25;
-                    google.protobuf.StringValue cid = 26;
-                    google.protobuf.StringValue cld = 27;
-                    google.protobuf.StringValue cea = 28;
-                    google.protobuf.StringValue vl = 29;
-                    map<string, string> ms_map = 30;
-                    repeated string rs_array = 31;
+                    string value = 1;
                 }
 
-                message Nothing {
+                message Response {
 
-                    string test = 1;
+                    int64 value = 1;
+                }
+                service TT {
+                    rpc unary (Request) returns (Response);
+                    rpc clientStream (stream Request) returns (Response);
+                    rpc serverStream (Request) returns (stream Response);
+                    rpc bothStream (stream Request) returns (stream Response);
                 }
 
-                message FlightList {
+                message student {
 
-                    map<string, FlightInfo> value = 1;
+                    int32 id = 1;
+                    string name = 2;
+                    int32 age = 3;
+                    map<string, string> tags = 4;
+                    google.protobuf.StringValue comment = 5;
+                    google.protobuf.Int32Value ivx = 6;
+                    map<string, google.protobuf.Int64Value> tags2 = 7;
+                    student s = 100;
+                    map<int32, student> ms = 1001;
+                    repeated student rs = 10009;
+                    repeated google.protobuf.Int64Value ri = 10;
                 }
-                service FlightService {
-                    rpc PullFlightInfo (Nothing) returns (FlightList);
-                    rpc Stream (Nothing) returns (stream Nothing);
+
+                message exam {
+
+                    int32 id = 1;
+                    string cls = 2;
+                    int32 studentid = 3;
+                    int32 score = 4;
                 }
-            }
-        }
 
-        message test {
+                message StudentScore {
 
-            message user {
+                    student s = 1;
+                    map<string, exam> exams = 2;
+                }
 
-                int32 id = 1;
-                string name = 2;
-                google.protobuf.StringValue comment = 3;
-                map<int32, order> order_array = 4;
-            }
+                message StudentScoresMap {
 
-            message order {
-
-                int32 id = 1;
-                int64 order_time = 2;
-                double total_price = 3;
-                google.protobuf.StringValue address = 4;
-                map<int32, orderItem> order_item_map = 5;
-                repeated orderItem order_item_array = 8;
-                map<int32, double> prices_map = 6;
-                int32 userid = 7;
-                orderItem most_exp_item = 9;
-            }
-
-            message orderItem {
-
-                int32 id = 1;
-                string name = 2;
-                double price = 3;
-                int32 orderid = 4;
-            }
-
-            message Users {
-
-                map<int32, user> users = 1;
-            }
-            service OrderService {
-                rpc GetUsersOrder (google.protobuf.Empty) returns (Users);
+                    map<int32, StudentScore> results = 1;
+                }
+                service ScoreService {
+                    rpc GetAllScores (google.protobuf.Empty) returns (StudentScoresMap);
+                }
             }
         }
     }

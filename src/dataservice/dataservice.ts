@@ -2,10 +2,14 @@ import {RPCImpl, Method, rpc, Type, Field, MapField, FieldBase} from "protobufjs
 import { grpc } from '@improbable-eng/grpc-web';
 import * as jspb from "google-protobuf";
 import * as pj from "protobufjs";
-import {com} from "./ds";
-import ChangeDesc = com.variflight.dataservice.ChangeDesc;
-import IChangeDesc = com.variflight.dataservice.IChangeDesc;
+import * as cd from "./proto/ChangeDesc_pb";
+import ChangeDesc = cd.ChangeDesc;
+import {TT, TTunary} from "@/api/TT_pb_service";
+import * as TT_pb from "@/api/TT_pb";
 
+/**
+ * 增量更新类型
+ */
 enum ChangeType{
     Unchanged = 0b00000000,
     Created = 0b01000000,
@@ -23,9 +27,9 @@ export class ServiceCaller {
         this.proto = proto;
     }
 
-    loop<TRequest, TResponse extends pj.Message<{}>>(
-        method: ((req:TRequest, callback:(err:(Error|null), resp?:TResponse)=>void)=>void)|((req:TRequest)=>Promise<TResponse>),
-        getParameter: () => TRequest,
+    loop<TRequest extends jspb.Message, TResponse extends jspb.Message>(
+        methodName: string,
+        parameter: TRequest,
         defaultTS: number = 0,
         daoUpdated: (newDao: (TResponse | undefined)) => void,
         defaultDAO?: TResponse,
@@ -35,25 +39,24 @@ export class ServiceCaller {
         let keep = true;
         let dao = defaultDAO;
         let ts = defaultTS;
-        const methodDesc = this.proto.lookupService(this.serviceName).methods[method.name];
+        const methodDesc = this.proto.lookupService(this.serviceName).methods[methodName];
         methodDesc.resolve();
 
         const call = function (host: string, proto: pj.Root, serviceName: string) {
             if (!keep) {
                 return;
             }
-            const param = getParameter();
             
-            class bridge extends jspb.Message {
+            class TypeBridge extends jspb.Message {
                 resultBts: Uint8Array | undefined;
                 serializeBinary(): Uint8Array {
-                    return methodDesc.resolvedRequestType?.encode(param).finish()!!;
+                    return methodDesc.resolvedRequestType?.encode(parameter).finish()!!;
                 }
                 toObject(includeInstance?: boolean | undefined): {} {
                     throw new Error("Method not implemented.");
                 }
-                static deserializeBinary(bts: Uint8Array): bridge {
-                    const result = new bridge();
+                static deserializeBinary(bts: Uint8Array): TypeBridge {
+                    const result = new TypeBridge();
                     result.resultBts = bts;
                     return result;
                 }
@@ -61,14 +64,14 @@ export class ServiceCaller {
             grpc.unary({
                 requestStream: false,
                 responseStream: false,
-                methodName: method.name,
+                methodName: methodName,
                 service: { serviceName: serviceName },
-                requestType: bridge,
-                responseType: bridge
+                requestType: TypeBridge,
+                responseType: TypeBridge
             }, {
                 transport: grpc.WebsocketTransport(),
                 host: host,
-                request: new bridge(),
+                request: new TypeBridge(),
                 metadata: { ts:  ts.toString()},
                 onEnd: function (resp) {
                     const tsHeader = resp.headers.get("ts");
@@ -77,12 +80,12 @@ export class ServiceCaller {
                     if(tsHeader.length == 1 || ctbinHeader.length == 1){
                         const ct = Uint8Array.from(atob(ctbinHeader[0]), c => c.charCodeAt(0))[0];
                         if (ct == ChangeType.Created){
-                            dao = methodDesc.resolvedResponseType?.decode((resp.message as bridge).resultBts!!) as TResponse;
+                            dao = methodDesc.resolvedResponseType?.decode((resp.message as TypeBridge).resultBts!!) as TResponse;
                             daoUpdated(dao);
                         }else if (ct == ChangeType.Updated){
                             const cdBts = Uint8Array.from(atob(cdbinHeader[0]), c => c.charCodeAt(0));
-                            const cd = ChangeDesc.decode(cdBts);
-                            const updateData = methodDesc.resolvedResponseType?.decode((resp.message as bridge).resultBts!!) as TResponse;
+                            const cd = ChangeDesc.deserializeBinary(cdBts);
+                            const updateData = methodDesc.resolvedResponseType?.decode((resp.message as TypeBridge).resultBts!!) as TResponse;
                             if(dao){
                                 const start = window.performance.now()
                                 mergeMessage(updateData, dao, methodDesc.resolvedResponseType!, cd, new Array<string>());
@@ -111,10 +114,6 @@ export class ServiceCaller {
             keep = false;
         }
     }
-
-    once() {
-
-    }
 }
 
 function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:TType, typeDesc:Type, cd:ChangeDesc, stack:Array<string>){
@@ -129,14 +128,14 @@ function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:T
         if(!cd) {
             console.log(sourceDAO, typeDesc, cd);
         }
-        const fieldTag = cd.fieldTags[Math.floor( i / 4)] >> (6 - (i % 4) * 2) << 6 & 0b11000000;
+        const fieldTag = cd.getFieldtags_asU8()[Math.floor( i / 4)] >> (6 - (i % 4) * 2) << 6 & 0b11000000;
         if(fieldTag == ChangeType.Created){
             // @ts-ignore
             targetDAO[field.name] = sourceDAO[field.name];
         }else if (fieldTag == ChangeType.Updated){
             let cdIndex = 0
             for(let j = 0; j < i; j++){
-                if ((cd.changeTags[Math.floor(j / 8)] >> (7 - j % 8) << 7 & 0b10000000) == 0b10000000){
+                if ((cd.getChangetags_asU8()[Math.floor(j / 8)] >> (7 - j % 8) << 7 & 0b10000000) == 0b10000000){
                     cdIndex++
                 }
             }
@@ -165,20 +164,20 @@ function mergeMessage<TType extends pj.Message<{}>>(sourceDAO:TType, targetDAO:T
 
 function mergeMap<TRequest extends pj.Message<{}>>(sourceDAO: Map<any, any>, targetDAO: Map<any, any>, field:MapField, cd: ChangeDesc, stack:Array<string>){
     field.resolve()
-    let createOrUpdatedMapDesc: { [k: string]: IChangeDesc }
-    let removedMapDesc: { [k: string]: IChangeDesc }
+    let createOrUpdatedMapDesc: jspb.Map<any, ChangeDesc>
+    let removedMapDesc: jspb.Map<any, ChangeDesc>
     if (field.keyType === "string"){
-        createOrUpdatedMapDesc = cd.mapString
-        removedMapDesc = cd.mapStringRemoved
+        createOrUpdatedMapDesc = cd.getMapStringMap()
+        removedMapDesc = cd.getMapStringRemovedMap()
     }else if (field.keyType === "int32"){
-        createOrUpdatedMapDesc = cd.mapInt32
-        removedMapDesc = cd.mapInt32Removed
+        createOrUpdatedMapDesc = cd.getMapInt32Map()
+        removedMapDesc = cd.getMapInt32RemovedMap()
     }else if(field.keyType === "int64"){
-        createOrUpdatedMapDesc = cd.mapInt64
-        removedMapDesc = cd.mapInt64Removed
+        createOrUpdatedMapDesc = cd.getMapInt64Map()
+        removedMapDesc = cd.getMapInt64RemovedMap()
     }else if(field.keyType === "boolean"){
-        createOrUpdatedMapDesc = cd.mapBool
-        removedMapDesc = cd.mapBoolRemoved
+        createOrUpdatedMapDesc = cd.getMapBoolMap()
+        removedMapDesc = cd.getMapBoolRemovedMap()
     }
     for(const key in removedMapDesc!){
         // @ts-ignore

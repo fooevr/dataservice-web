@@ -1,0 +1,16 @@
+syntax = "proto3";
+package com.variflight.dataservice.test;
+message Request{
+    string value = 1;
+}
+
+message Response{
+    int64 value = 1;
+}
+
+service TT{
+    rpc unary(Request)returns(Response);
+    rpc clientStream(stream Request)returns(Response);
+    rpc serverStream(Request)returns(stream Response);
+    rpc bothStream(stream Request)returns(stream Response);
+}
