@@ -14,7 +14,7 @@
     "core-js": "^3.6.4",
     "element-ui": "^2.13.1",
     "google-protobuf": "^3.11.4",
-    "protobufjs": "^6.9.0",
+    "protobufjs": "^6.11.3",
     "ts-protoc-gen": "^0.12.0",
     "vue": "^2.6.11",
     "vue-class-component": "^7.2.3",
